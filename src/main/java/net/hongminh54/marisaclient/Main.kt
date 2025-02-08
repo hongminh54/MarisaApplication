@@ -45,16 +45,96 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import javax.imageio.ImageIO
+import java.awt.Taskbar
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.foundation.Image
+import kotlinx.coroutines.delay
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.foundation.layout.Box
+import java.awt.image.BufferedImage
 
 // Hàm main: Khởi chạy ứng dụng Compose for Desktop
 fun main() = application {
     val scope = rememberCoroutineScope()
-    Window(
-        onCloseRequest = { scope.launch { exitApplication() } }, // Đóng ứng dụng khi nhấn nút X
-        title = "MarisaClient Installer 1.0",
-        state = rememberWindowState(width = 900.dp, height = 600.dp) // Kích thước mặc định của cửa sổ
-    ) {
-        AppUI(onExit = { scope.launch { exitApplication() } }) // Gọi giao diện chính
+    var showSplash by remember { mutableStateOf(true) }
+    val splashDuration = 5000L // Thời gian hiển thị splash (5 giây)
+
+    // 📌 Tải ảnh Splash và Icon từ resource
+    val splashImage = loadResourceImage("/splash.png")
+    val splashPainter = splashImage?.toComposeImageBitmap()?.let { BitmapPainter(it) }
+
+    val iconImage = loadResourceImage("/icon.jpg")
+    val iconPainter = iconImage?.toComposeImageBitmap()?.let { BitmapPainter(it) }
+
+    // 📌 Lấy kích thước splash mặc định
+    val splashWidth = splashImage?.width?.dp ?: 300.dp
+    val splashHeight = splashImage?.height?.dp ?: 300.dp
+
+    // 📌 Căn giữa cửa sổ Splash
+    val splashState = rememberWindowState(
+        width = splashWidth,
+        height = splashHeight,
+        position = WindowPosition(Alignment.Center)
+    )
+
+    // 📌 Đặt icon cho Taskbar nếu hệ thống hỗ trợ
+    iconImage?.let {
+        if (Taskbar.isTaskbarSupported()) {
+            try {
+                Taskbar.getTaskbar().iconImage = it
+            } catch (e: UnsupportedOperationException) {
+                println("⚠️ Taskbar không hỗ trợ icon.")
+            }
+        }
+    }
+
+    // 🖼️ Hiển thị Splash trước khi mở ứng dụng chính
+    if (showSplash) {
+        Window(
+            onCloseRequest = { scope.launch { exitApplication() } },
+            undecorated = true, // Ẩn viền cửa sổ
+            resizable = false,
+            transparent = true, // Làm nền trong suốt
+            state = splashState
+        ) {
+            // ⏳ Đợi splash hiển thị xong rồi ẩn nó đi
+            LaunchedEffect(Unit) {
+                delay(splashDuration)
+                showSplash = false
+            }
+
+            // 🎨 Hiển thị hình ảnh Splash
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                splashPainter?.let { Image(it, contentDescription = "Splash Screen") }
+            }
+        }
+    } else {
+        // 🏠 Hiển thị cửa sổ chính của ứng dụng
+        Window(
+            onCloseRequest = { scope.launch { exitApplication() } },
+            title = "MarisaClient Installer 1.0",
+            state = rememberWindowState(width = 900.dp, height = 600.dp),
+            icon = iconPainter
+        ) {
+            AppUI(onExit = { scope.launch { exitApplication() } })
+        }
+    }
+}
+
+// 📥 Hàm tải ảnh từ resource trong JAR/EXE
+fun loadResourceImage(path: String): BufferedImage? {
+    return try {
+        object {}.javaClass.getResource(path)?.let { ImageIO.read(it) as BufferedImage }
+    } catch (e: Exception) {
+        println("⚠️ Lỗi tải ảnh: ${e.message}")
+        null
     }
 }
 
@@ -128,7 +208,7 @@ fun Sidebar(onExit: () -> Unit, onShowUpdateLog: () -> Unit, onShowGuide: () -> 
     ) {
         Text(
             "MarisaClient Installer",
-            color = Color.White,
+            color = Color.Yellow,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(8.dp)
