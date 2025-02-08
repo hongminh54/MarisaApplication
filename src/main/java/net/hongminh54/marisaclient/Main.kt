@@ -66,25 +66,25 @@ fun main() = application {
     var showSplash by remember { mutableStateOf(true) }
     val splashDuration = 5000L // Thời gian hiển thị splash (5 giây)
 
-    // 📌 Tải ảnh Splash và Icon từ resource
+    // Tải ảnh Splash và Icon từ resource
     val splashImage = loadResourceImage("/splash.png")
     val splashPainter = splashImage?.toComposeImageBitmap()?.let { BitmapPainter(it) }
 
     val iconImage = loadResourceImage("/icon.jpg")
     val iconPainter = iconImage?.toComposeImageBitmap()?.let { BitmapPainter(it) }
 
-    // 📌 Lấy kích thước splash mặc định
+    // Lấy kích thước splash mặc định
     val splashWidth = splashImage?.width?.dp ?: 300.dp
     val splashHeight = splashImage?.height?.dp ?: 300.dp
 
-    // 📌 Căn giữa cửa sổ Splash
+    // Căn giữa cửa sổ Splash
     val splashState = rememberWindowState(
         width = splashWidth,
         height = splashHeight,
         position = WindowPosition(Alignment.Center)
     )
 
-    // 📌 Đặt icon cho Taskbar nếu hệ thống hỗ trợ
+    // Đặt icon cho Taskbar nếu hệ thống hỗ trợ
     iconImage?.let {
         if (Taskbar.isTaskbarSupported()) {
             try {
@@ -95,7 +95,7 @@ fun main() = application {
         }
     }
 
-    // 🖼️ Hiển thị Splash trước khi mở ứng dụng chính
+    // Hiển thị Splash trước khi mở ứng dụng chính
     if (showSplash) {
         Window(
             onCloseRequest = { scope.launch { exitApplication() } },
@@ -110,13 +110,13 @@ fun main() = application {
                 showSplash = false
             }
 
-            // 🎨 Hiển thị hình ảnh Splash
+            // Hiển thị hình ảnh Splash
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 splashPainter?.let { Image(it, contentDescription = "Splash Screen") }
             }
         }
     } else {
-        // 🏠 Hiển thị cửa sổ chính của ứng dụng
+        // Hiển thị cửa sổ chính của ứng dụng
         Window(
             onCloseRequest = { scope.launch { exitApplication() } },
             title = "MarisaClient Installer 1.0",
@@ -128,7 +128,7 @@ fun main() = application {
     }
 }
 
-// 📥 Hàm tải ảnh từ resource trong JAR/EXE
+// Hàm tải ảnh từ resource trong JAR/EXE
 fun loadResourceImage(path: String): BufferedImage? {
     return try {
         object {}.javaClass.getResource(path)?.let { ImageIO.read(it) as BufferedImage }
