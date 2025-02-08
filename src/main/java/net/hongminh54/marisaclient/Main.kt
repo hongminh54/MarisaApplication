@@ -135,7 +135,7 @@ fun Sidebar(onExit: () -> Unit, onShowUpdateLog: () -> Unit, onShowGuide: () -> 
         )
         SidebarButton("Update Log", Icons.Default.Info, onClick = onShowUpdateLog)
         SidebarButton("Hướng Dẫn", Icons.Default.Info, onClick = onShowGuide)
-        SidebarButton("WebSite", Icons.Default.Call, onClick = { openWebPage("https://www.facebook.com/elliotvatybzi/") })
+        SidebarButton("WebSite", Icons.Default.Call, onClick = { openWebPage("https://github.com/hongminh54/MarisaApplication") })
         Spacer(modifier = Modifier.weight(1f))
         SidebarButton("Thoát", Icons.Default.ExitToApp, onClick = onExit, baseColor = Color.Red)
     }

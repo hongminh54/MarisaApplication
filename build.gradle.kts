@@ -14,7 +14,7 @@ repositories {
 }
 
 val composeVersion = "1.7.3"
-val skikoVersion = "0.8.19" // 🔹 Đảm bảo đúng phiên bản tương thích với Compose
+val skikoVersion = "0.8.19"
 
 dependencies {
     implementation(compose.desktop.currentOs)
@@ -51,7 +51,6 @@ compose.desktop {
     }
 }
 
-// ✅ Cấu hình Fat JAR
 tasks.register<Jar>("fatJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set("MarisaApplication")
@@ -64,17 +63,14 @@ tasks.register<Jar>("fatJar") {
 
     from(sourceSets.main.get().output)
 
-    // 🔹 Đảm bảo tất cả thư viện cần thiết được đóng gói
     from({
         configurations.runtimeClasspath.get().filter { it.exists() && it.name.endsWith(".jar") }
             .map { zipTree(it) }
     })
 
-    // 🔥 Loại bỏ lỗi trùng lặp META-INF
     exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
 }
 
-// ✅ Xây dựng Fat JAR khi chạy `./gradlew build`
 tasks.build {
     dependsOn(tasks.named("fatJar"))
 }
