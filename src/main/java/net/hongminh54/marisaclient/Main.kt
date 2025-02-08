@@ -10,8 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.*
 import kotlinx.coroutines.*
+import java.net.URI
 import java.awt.Desktop
 import java.net.HttpURLConnection
 import java.net.URL
@@ -280,7 +280,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
 
     val statusColor by animateColorAsState(
         when {
-            status.contains("Sẵn sàng") -> Color.Gray
+            status.contains("Sẵn sàng") -> Color.LightGray
             status.contains("Đang tải") -> Color.Magenta
             status.contains("✅") -> Color.Green
             status.contains("❌") -> Color.Red
@@ -437,7 +437,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
     }
 }
 
-// 🌟 Nút với hiệu ứng neon động
+// Nút với hiệu ứng neon động
 @Composable
 fun NeonButton(text: String, onClick: () -> Unit, baseColor: Color = Color.DarkGray) {
     var hover by remember { mutableStateOf(false) }
@@ -553,7 +553,7 @@ suspend fun downloadFile(
                     delay(500)
                 }
 
-                wasPaused = false // ✅ Reset khi tiếp tục tải
+                wasPaused = false // Reset khi tiếp tục tải
 
                 outputStream.write(buffer, 0, bytesRead)
                 totalBytesRead += bytesRead
@@ -609,17 +609,6 @@ fun detectMinecraftFolder(): File? {
         if (folder.exists()) return folder
     }
     return null
-}
-
-// Mở thư mục được chọn
-fun openMinecraftFolder() {
-    val minecraftFolder = detectMinecraftFolder()
-
-    if (minecraftFolder != null) {
-        openSelectedFolder(minecraftFolder)
-    } else {
-        JOptionPane.showMessageDialog(null, "⚠️ Không tìm thấy thư mục .minecraft!", "Lỗi", JOptionPane.ERROR_MESSAGE)
-    }
 }
 
 fun openSelectedFolder(folder: File) {
@@ -714,14 +703,32 @@ fun extractZip(zipFile: File, onExtractComplete: (File) -> Unit) {
 
 // Hàm mở trang web trong trình duyệt mặc định
 fun openWebPage(url: String) {
+    if (url.isBlank()) {
+        JOptionPane.showMessageDialog(null, "⚠️ URL không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE)
+        return
+    }
+
     try {
-        val uri = java.net.URI(url)
-        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-            Desktop.getDesktop().browse(uri)
-        } else {
-            Runtime.getRuntime().exec("xdg-open $url") // Linux
+        val uri = URI(url)
+
+        // Kiểm tra xem Desktop có hỗ trợ mở trình duyệt không
+        if (Desktop.isDesktopSupported()) {
+            val desktop = Desktop.getDesktop()
+            if (desktop.isSupported(Desktop.Action.BROWSE)) {
+                desktop.browse(uri)
+                return
+            }
+        }
+
+        // Nếu không hỗ trợ Desktop API, thử mở bằng lệnh hệ thống
+        val osName = System.getProperty("os.name").lowercase()
+        when {
+            osName.contains("win") -> Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler $url")
+            osName.contains("mac") -> Runtime.getRuntime().exec("open $url")
+            osName.contains("nux") -> Runtime.getRuntime().exec("xdg-open $url")
+            else -> JOptionPane.showMessageDialog(null, "⚠️ Hệ điều hành không được hỗ trợ!", "Lỗi", JOptionPane.ERROR_MESSAGE)
         }
     } catch (e: Exception) {
-        JOptionPane.showMessageDialog(null, "⚠️ Không thể mở trang web!", "Lỗi", JOptionPane.ERROR_MESSAGE)
+        JOptionPane.showMessageDialog(null, "⚠️ Không thể mở trang web: ${e.message}", "Lỗi", JOptionPane.ERROR_MESSAGE)
     }
 }
