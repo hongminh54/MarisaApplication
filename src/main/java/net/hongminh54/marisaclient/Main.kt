@@ -69,7 +69,7 @@ fun main() = application {
     }
 }
 
-// 🎨 Splash Screen
+// Splash Screen
 @Composable
 fun SplashScreen(image: BufferedImage?, onFinish: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -97,7 +97,7 @@ fun SplashScreen(image: BufferedImage?, onFinish: () -> Unit) {
     }
 }
 
-// 🏠 Cửa sổ chính
+// Cửa sổ chính
 @Composable
 fun MainWindow(iconPainter: BitmapPainter?, onExit: () -> Unit) {
     Window(
@@ -110,14 +110,14 @@ fun MainWindow(iconPainter: BitmapPainter?, onExit: () -> Unit) {
     }
 }
 
-// 📥 Tải ảnh từ resource
+// Tải ảnh từ resource
 fun loadResourceImage(path: String): BufferedImage? =
     runCatching { object {}.javaClass.getResourceAsStream(path)?.use { ImageIO.read(it) } }.getOrNull()
 
-// 🖼️ Chuyển ảnh thành Painter
+// Chuyển ảnh thành Painter
 fun BufferedImage.toPainter() = BitmapPainter(this.toComposeImageBitmap())
 
-// 🖥️ Đặt icon Taskbar (nếu hỗ trợ)
+// Đặt icon Taskbar (nếu hỗ trợ)
 fun setTaskbarIcon(image: BufferedImage) {
     if (Taskbar.isTaskbarSupported()) {
         try {
@@ -128,7 +128,7 @@ fun setTaskbarIcon(image: BufferedImage) {
     }
 }
 
-// 🏠 UI chính với Sidebar có hiệu ứng Hover
+// UI chính với Sidebar có hiệu ứng Hover
 @Composable
 fun AppUI(onExit: () -> Unit) {
     var selectedTab by remember { mutableStateOf("install") }
@@ -141,7 +141,7 @@ fun AppUI(onExit: () -> Unit) {
                 onShowUpdateLog = { selectedTab = "update_log" },
                 onShowGuide = { selectedTab = "guide" }
             )
-            MainPanel(selectedTab, minecraftFolder) { selectedTab = "install" }
+            MainPanel(selectedTab) { selectedTab = "install" }
         }
     }
 }
@@ -248,7 +248,7 @@ fun AnimatedButton(
 
 // Panel chính hiển thị nội dung của từng tab
 @Composable
-fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstall: () -> Unit) {
+fun MainPanel(selectedTab: String, onBackToInstall: () -> Unit) {
     var minecraftFolder by remember { mutableStateOf<File?>(null) }
     var status2 by remember { mutableStateOf("🔍 Đang kiểm tra thư mục...") }
     val isDownloading = remember { mutableStateOf(false) }
@@ -343,7 +343,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
 
                             downloadJob = downloadScope.launch {
                                 downloadFile(
-                                    url = "https://github.com/hongminh54/assets/releases/download/new/mods.zip",
+                                    url = "https://github.com/hongminh54/assets/releases/download/new/mods.zip", // Thay đổi URL tại đây
                                     outputFilePath = filePath,
                                     progress = { progress = it },
                                     speed = { speed = it },
@@ -400,7 +400,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
                 Text("📜 Hướng Dẫn Cài Đặt", color = Color.White, fontSize = 20.sp)
                 Text(
                     "Thả thư mục mods vào thư mục .minecraft của bạn và chạy fabric mod phiên bản 1.21.4\n\n" +
-                            "Nếu bạn muốn loại bỏ một số mod không cần thiết, bạn có thể loại bỏ chúng!\n\n" +
+                            "Nếu bạn muốn loại bỏ một số mod không cần thiết, bạn có thể loại bỏ chúng!\n" +
                             "Chúc bạn chơi vui vẻ\n", color = Color.White
                 )
 
@@ -410,6 +410,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
     }
 }
 
+// Mở Folder từ File .minecraft
 fun openFolder(folder: File) {
     try {
         if (!folder.exists()) {
@@ -547,6 +548,7 @@ fun detectMinecraftFolder(): File? {
     return null
 }
 
+// Thông báo mở file sau khi giải nén
 fun openSelectedFolder(folder: File) {
     try {
         // Kiểm tra xem thư mục có tồn tại không
@@ -591,6 +593,7 @@ fun openSelectedFolder(folder: File) {
     }
 }
 
+// Tự giải nén file và xóa file zip sau khi tải xong
 fun extractZip(zipFile: File, onExtractComplete: (File) -> Unit) {
     // Xác định thư mục đích để giải nén, đặt cùng vị trí với file zip và có tên giống file zip
     val outputDir = File(zipFile.parentFile, zipFile.nameWithoutExtension)
