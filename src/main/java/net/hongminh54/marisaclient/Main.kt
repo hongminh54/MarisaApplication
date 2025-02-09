@@ -23,19 +23,7 @@ import kotlinx.coroutines.withContext
 import java.io.FileOutputStream
 import java.io.InputStream
 import javax.swing.JOptionPane
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Path
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.*
-import kotlin.math.sin
-import androidx.compose.ui.graphics.drawscope.Fill
-import kotlin.math.PI
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
@@ -43,8 +31,6 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -54,215 +40,211 @@ import javax.imageio.ImageIO
 import java.awt.Taskbar
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
-import androidx.compose.foundation.Image
 import kotlinx.coroutines.delay
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.foundation.layout.Box
 import java.awt.image.BufferedImage
+import androidx.compose.foundation.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.material.MaterialTheme
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.input.pointer.pointerMoveFilter
+import kotlin.system.exitProcess
+
 
 // Hàm main: Khởi chạy ứng dụng Compose for Desktop
 fun main() = application {
-    val scope = rememberCoroutineScope()
     var showSplash by remember { mutableStateOf(true) }
-    val splashDuration = 5000L // Thời gian hiển thị splash (5 giây)
+    val splashImage = remember { loadResourceImage("/splash.png") }
+    val iconImage = remember { loadResourceImage("/icon.jpg") }
 
-    // Tải ảnh Splash và Icon từ resource
-    val splashImage = loadResourceImage("/splash.png")
-    val splashPainter = splashImage?.toComposeImageBitmap()?.let { BitmapPainter(it) }
+    iconImage?.let { setTaskbarIcon(it) }
 
-    val iconImage = loadResourceImage("/icon.jpg")
-    val iconPainter = iconImage?.toComposeImageBitmap()?.let { BitmapPainter(it) }
-
-    // Lấy kích thước splash mặc định
-    val splashWidth = splashImage?.width?.dp ?: 300.dp
-    val splashHeight = splashImage?.height?.dp ?: 300.dp
-
-    // Căn giữa cửa sổ Splash
-    val splashState = rememberWindowState(
-        width = splashWidth,
-        height = splashHeight,
-        position = WindowPosition(Alignment.Center)
-    )
-
-    // Đặt icon cho Taskbar nếu hệ thống hỗ trợ
-    iconImage?.let {
-        if (Taskbar.isTaskbarSupported()) {
-            try {
-                Taskbar.getTaskbar().iconImage = it
-            } catch (e: UnsupportedOperationException) {
-                println("⚠️ Taskbar không hỗ trợ icon.")
-            }
-        }
-    }
-
-    // Hiển thị Splash trước khi mở ứng dụng chính
     if (showSplash) {
-        Window(
-            onCloseRequest = { scope.launch { exitApplication() } },
-            undecorated = true, // Ẩn viền cửa sổ
-            resizable = false,
-            transparent = true, // Làm nền trong suốt
-            state = splashState
-        ) {
-            // ⏳ Đợi splash hiển thị xong rồi ẩn nó đi
-            LaunchedEffect(Unit) {
-                delay(splashDuration)
-                showSplash = false
-            }
-
-            // Hiển thị hình ảnh Splash
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                splashPainter?.let { Image(it, contentDescription = "Splash Screen") }
-            }
-        }
+        SplashScreen(splashImage) { showSplash = false }
     } else {
-        // Hiển thị cửa sổ chính của ứng dụng
-        Window(
-            onCloseRequest = { scope.launch { exitApplication() } },
-            title = "MarisaClient Installer 1.0",
-            state = rememberWindowState(width = 900.dp, height = 600.dp),
-            icon = iconPainter
-        ) {
-            AppUI(onExit = { scope.launch { exitApplication() } })
+        MainWindow(iconImage?.toPainter()) { exitProcess(0) }
+    }
+}
+
+// 🎨 Splash Screen
+@Composable
+fun SplashScreen(image: BufferedImage?, onFinish: () -> Unit) {
+    val scope = rememberCoroutineScope()
+
+    Window(
+        undecorated = true,
+        transparent = true,
+        resizable = false,
+        state = rememberWindowState(size = DpSize(300.dp, 300.dp), position = WindowPosition(Alignment.Center)),
+        onCloseRequest = onFinish
+    ) {
+        LaunchedEffect(Unit) {
+            scope.launch {
+                delay(3000)
+                onFinish()
+            }
+        }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (image != null) {
+                Image(image.toPainter(), contentDescription = "Splash")
+            } else {
+                Text("Loading...", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
-// Hàm tải ảnh từ resource trong JAR/EXE
-fun loadResourceImage(path: String): BufferedImage? {
-    return try {
-        object {}.javaClass.getResource(path)?.let { ImageIO.read(it) as BufferedImage }
-    } catch (e: Exception) {
-        println("⚠️ Lỗi tải ảnh: ${e.message}")
-        null
+// 🏠 Cửa sổ chính
+@Composable
+fun MainWindow(iconPainter: BitmapPainter?, onExit: () -> Unit) {
+    Window(
+        onCloseRequest = onExit,
+        title = "MarisaClient Installer 1.0",
+        state = rememberWindowState(size = DpSize(900.dp, 600.dp)),
+        icon = iconPainter
+    ) {
+        AppUI(onExit)
     }
 }
 
-// Hàm hiển thị giao diện chính của ứng dụng
+// 📥 Tải ảnh từ resource
+fun loadResourceImage(path: String): BufferedImage? =
+    runCatching { object {}.javaClass.getResourceAsStream(path)?.use { ImageIO.read(it) } }.getOrNull()
+
+// 🖼️ Chuyển ảnh thành Painter
+fun BufferedImage.toPainter() = BitmapPainter(this.toComposeImageBitmap())
+
+// 🖥️ Đặt icon Taskbar (nếu hỗ trợ)
+fun setTaskbarIcon(image: BufferedImage) {
+    if (Taskbar.isTaskbarSupported()) {
+        try {
+            Taskbar.getTaskbar().iconImage = image
+        } catch (_: UnsupportedOperationException) {
+            println("⚠️ Taskbar không hỗ trợ icon.")
+        }
+    }
+}
+
+// 🏠 UI chính với Sidebar có hiệu ứng Hover
 @Composable
 fun AppUI(onExit: () -> Unit) {
-    var selectedTab by remember { mutableStateOf("install") } // Biến trạng thái xác định tab đang được chọn
-    val minecraftFolder = remember { detectMinecraftFolder() } // Tự động phát hiện thư mục .minecraft
+    var selectedTab by remember { mutableStateOf("install") }
+    val minecraftFolder = remember { detectMinecraftFolder() } // ✅ Giữ nguyên logic
 
     MaterialTheme {
-        Row(modifier = Modifier.fillMaxSize().background(Color(30, 30, 30))) {
+        Row(Modifier.fillMaxSize().background(Color(30, 30, 30))) {
             Sidebar(
-                // Sidebar chứa các nút điều hướng
                 onExit = onExit,
                 onShowUpdateLog = { selectedTab = "update_log" },
                 onShowGuide = { selectedTab = "guide" }
             )
-            // Panel chính hiển thị nội dung theo tab
             MainPanel(selectedTab, minecraftFolder) { selectedTab = "install" }
         }
     }
 }
 
 // Sidebar chứa các nút Update Log, Hướng Dẫn, Thoát
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun Sidebar(onExit: () -> Unit, onShowUpdateLog: () -> Unit, onShowGuide: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val waveOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
+    var isHovered by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = Modifier
             .width(250.dp)
             .fillMaxHeight()
-            .background(Color(40, 40, 40))
-            .padding(16.dp)
-            .drawBehind {
-                val waveAmplitude = 20f
-                val waveFrequency = 0.02f
-                val path = Path().apply {
-                    moveTo(0f, size.height * 0.8f)
-                    for (x in 0..size.width.toInt()) {
-                        val y = size.height * 0.8f + waveAmplitude * sin(waveFrequency * x + waveOffset * 2 * PI.toFloat())
-                        lineTo(x.toFloat(), y)
-                    }
-                    lineTo(size.width, size.height)
-                    lineTo(0f, size.height)
-                    close()
-                }
-                drawPath(
-                    path = path,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Red.copy(alpha = 0.5f),
-                            Color.Green.copy(alpha = 0.5f),
-                            Color.Blue.copy(alpha = 0.5f)
-                        ),
-                        startY = 0f,
-                        endY = size.height
-                    ),
-                    style = Fill
-                )
-            },
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .clip(RoundedCornerShape(20.dp)) // Góc bo tròn hơn
+            .background(
+                if (isHovered) Color(50, 50, 50).copy(alpha = 0.9f)
+                else Color(40, 40, 40).copy(alpha = 0.8f)
+            )
+            .shadow(20.dp, shape = RoundedCornerShape(20.dp))
+            .pointerMoveFilter(
+                onEnter = { isHovered = true; false },
+                onExit = { isHovered = false; false }
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            "MarisaClient Installer",
-            color = Color.Yellow,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(8.dp)
-        )
-        SidebarButton("Update Log", Icons.Default.Info, onClick = onShowUpdateLog)
-        SidebarButton("Hướng Dẫn", Icons.Default.Info, onClick = onShowGuide)
-        SidebarButton("WebSite", Icons.Default.Call, onClick = { openWebPage("https://github.com/hongminh54/MarisaApplication") })
-        Spacer(modifier = Modifier.weight(1f))
-        SidebarButton("Thoát", Icons.Default.ExitToApp, onClick = onExit, baseColor = Color.Red)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "MarisaClient Installer",
+                color = Color(255, 223, 0),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(8.dp)
+            )
+            SidebarButton("Update Log", Icons.Default.Info, onClick = onShowUpdateLog)
+            SidebarButton("Hướng Dẫn", Icons.Default.Info, onClick = onShowGuide)
+            SidebarButton("WebSite", Icons.Default.Call, onClick = { openWebPage("https://github.com/hongminh54/MarisaApplication") })
+            Spacer(modifier = Modifier.weight(1f))
+            SidebarButton("Thoát", Icons.Default.ExitToApp, onClick = onExit, baseColor = Color.Red)
+        }
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SidebarButton(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    baseColor: Color = Color.DarkGray,
-    isSelected: Boolean = false
+    baseColor: Color = Color.White
 ) {
-    var hover by remember { mutableStateOf(false) }
-    val neonGradient = listOf(Color.Cyan, Color.Magenta, Color.Blue)
+    var isHovered by remember { mutableStateOf(false) }
 
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            backgroundColor = baseColor,
-            contentColor = Color.White
-        ),
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .height(50.dp)
-            .border(
-                width = if (hover) 2.dp else 1.dp,
-                brush = Brush.linearGradient(neonGradient),
-                shape = RoundedCornerShape(10.dp)
-            ),
-        shape = RoundedCornerShape(10.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isHovered) baseColor.copy(alpha = 0.2f) else Color.Transparent)
+            .clickable { onClick() }
+            .pointerMoveFilter(
+                onEnter = { isHovered = true; false },
+                onExit = { isHovered = false; false }
             )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(text, fontSize = 16.sp)
-        }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = baseColor)
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(text, color = baseColor, fontWeight = FontWeight.Medium)
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun AnimatedButton(
+    text: String,
+    baseColor: Color = Color.White,
+    onClick: () -> Unit
+) {
+    var isHovered by remember { mutableStateOf(false) }
+    var isPressed by remember { mutableStateOf(false) }
 
+    Box(
+        modifier = Modifier
+            .padding(8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isHovered) baseColor.copy(alpha = 0.3f) else baseColor.copy(alpha = 0.2f))
+            .clickable { isPressed = true; onClick() }
+            .pointerMoveFilter(
+                onEnter = { isHovered = true; false },
+                onExit = { isHovered = false; false }
+            )
+            .scale(if (isPressed) 0.95f else 1f) // Hiệu ứng thu nhỏ nhẹ khi nhấn
+            .padding(10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    }
+}
 
 // Panel chính hiển thị nội dung của từng tab
 @Composable
@@ -302,7 +284,6 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
             "install" -> {
                 Text("Trạng thái: $status", color = statusColor)
 
-                // Cải thiện thanh tiến trình
                 LinearProgressIndicator(
                     progress = progress.coerceIn(0f, 1f),
                     modifier = Modifier
@@ -315,20 +296,17 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
                 )
 
                 Text("Tốc độ: $speed", color = Color.White)
-
                 Text("Thư mục Minecraft: $status2", color = Color.White, fontSize = 14.sp)
 
-                // Nút cập nhật để kiểm tra lại thư mục
-                NeonButton(text = "🔄 Update Folder", onClick = {
+                AnimatedButton(text = "🔄 Update Folder", onClick = {
                     val detectedFolder = detectMinecraftFolder()
                     minecraftFolder = detectedFolder
                     status2 = if (detectedFolder != null) "📂 Đã tìm thấy: ${detectedFolder.absolutePath}"
                     else "⚠️ Không tìm thấy thư mục .minecraft"
                 }, baseColor = Color.Green)
 
-                // Hiển thị nút mở thư mục nếu đã tìm thấy `.minecraft`
                 if (minecraftFolder != null) {
-                    NeonButton(text = "📂 Mở thư mục", onClick = {
+                    AnimatedButton(text = "📂 Mở thư mục", onClick = {
                         openSelectedFolder(minecraftFolder!!)
                     }, baseColor = Color.Blue)
                 }
@@ -354,8 +332,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
                 Spacer(Modifier.height(10.dp))
 
                 Row {
-                    // Nút "Bắt đầu tải" với hiệu ứng neon động
-                    NeonButton(text = "Bắt đầu tải", onClick = {
+                    AnimatedButton(text = "Bắt đầu tải", onClick = {
                         if (!isDownloading.value) {
                             isDownloading.value = true
                             isPaused.value = false
@@ -387,8 +364,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
 
                     Spacer(Modifier.width(10.dp))
 
-                    // Nút "Tạm dừng" với hiệu ứng neon động
-                    NeonButton(text = if (isPaused.value) "Tiếp tục" else "Tạm dừng", onClick = {
+                    AnimatedButton(text = if (isPaused.value) "Tiếp tục" else "Tạm dừng", onClick = {
                         if (isDownloading.value) {
                             isPaused.value = !isPaused.value
                             status = if (isPaused.value) "⏸️ Đã tạm dừng" else "▶️ Tiếp tục tải..."
@@ -398,8 +374,7 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
 
                     Spacer(Modifier.width(10.dp))
 
-                    // Nút "Hủy" với hiệu ứng neon động
-                    NeonButton(text = "Hủy", onClick = {
+                    AnimatedButton(text = "Hủy", onClick = {
                         if (isDownloading.value) {
                             isDownloading.value = false
                             isPaused.value = false
@@ -416,10 +391,9 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
 
             "update_log" -> {
                 Text("🔹 Update Log", color = Color.White, fontSize = 20.sp)
-                Text("- Update 1.0 Pre-Release\n- Update Gui\n- Update MarisaClient to MarisaClient-1.0.2-2025", color = Color.White)
+                Text("- Update 1.0 Pre-Release\n- Update Gui\n- Update MarisaClient to MarisaClient-1.0.2-2025\n- Improve Gui 1.1", color = Color.White)
 
-                // Dùng NeonButton thay vì Button
-                NeonButton(text = "Quay lại Cài Đặt", onClick = onBackToInstall)
+                AnimatedButton(text = "Quay lại Cài Đặt", onClick = onBackToInstall)
             }
 
             "guide" -> {
@@ -430,46 +404,8 @@ fun MainPanel(selectedTab: String, initialMinecraftFolder: File?, onBackToInstal
                             "Chúc bạn chơi vui vẻ\n", color = Color.White
                 )
 
-                // Dùng NeonButton thay vì Button
-                NeonButton(text = "Quay lại Cài Đặt", onClick = onBackToInstall)
+                AnimatedButton(text = "Quay lại Cài Đặt", onClick = onBackToInstall)
             }
-        }
-    }
-}
-
-// Nút với hiệu ứng neon động
-@Composable
-fun NeonButton(text: String, onClick: () -> Unit, baseColor: Color = Color.DarkGray) {
-    var hover by remember { mutableStateOf(false) }
-    val neonGradient = listOf(Color.Cyan, Color.Magenta, Color.Blue)
-
-    Box(
-        modifier = Modifier
-            .width(220.dp)
-            .height(50.dp)
-            .padding(8.dp)
-            .border(
-                width = if (hover) 4.dp else 2.dp,
-                brush = Brush.linearGradient(neonGradient),
-                shape = RoundedCornerShape(12.dp)
-            )
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = { hover = true },
-                    onTap = { hover = false }
-                )
-            }
-    ) {
-        Button(
-            onClick = onClick,
-            colors = ButtonDefaults.buttonColors(
-                backgroundColor = baseColor,
-                contentColor = Color.White
-            ),
-            modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -701,33 +637,45 @@ fun extractZip(zipFile: File, onExtractComplete: (File) -> Unit) {
     }
 }
 
-// Hàm mở trang web trong trình duyệt mặc định
+/**
+* Mở trang web trong trình duyệt mặc định.
+*
+* @param url Địa chỉ trang web cần mở.
+*/
 fun openWebPage(url: String) {
+    // Kiểm tra nếu URL rỗng hoặc không hợp lệ
     if (url.isBlank()) {
         JOptionPane.showMessageDialog(null, "⚠️ URL không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE)
         return
     }
 
     try {
-        val uri = URI(url)
+        val uri = URI(url) // Chuyển đổi chuỗi URL thành đối tượng URI
 
-        // Kiểm tra xem Desktop có hỗ trợ mở trình duyệt không
+        // Kiểm tra xem hệ thống có hỗ trợ Desktop API không
         if (Desktop.isDesktopSupported()) {
             val desktop = Desktop.getDesktop()
             if (desktop.isSupported(Desktop.Action.BROWSE)) {
-                desktop.browse(uri)
+                desktop.browse(uri) // Mở trang web bằng trình duyệt mặc định
                 return
             }
         }
 
-        // Nếu không hỗ trợ Desktop API, thử mở bằng lệnh hệ thống
+        // Nếu Desktop API không khả dụng, dùng lệnh hệ thống
         val osName = System.getProperty("os.name").lowercase()
-        when {
-            osName.contains("win") -> Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler $url")
-            osName.contains("mac") -> Runtime.getRuntime().exec("open $url")
-            osName.contains("nux") -> Runtime.getRuntime().exec("xdg-open $url")
-            else -> JOptionPane.showMessageDialog(null, "⚠️ Hệ điều hành không được hỗ trợ!", "Lỗi", JOptionPane.ERROR_MESSAGE)
+        val command = when {
+            osName.contains("win") -> "rundll32 url.dll,FileProtocolHandler $url" // Windows
+            osName.contains("mac") -> "open $url" // macOS
+            osName.contains("nux") -> "xdg-open $url" // Linux
+            else -> null
         }
+
+        if (command != null) {
+            Runtime.getRuntime().exec(command) // Thực thi lệnh mở trình duyệt
+        } else {
+            JOptionPane.showMessageDialog(null, "⚠️ Không thể mở trình duyệt trên hệ điều hành này!", "Lỗi", JOptionPane.ERROR_MESSAGE)
+        }
+
     } catch (e: Exception) {
         JOptionPane.showMessageDialog(null, "⚠️ Không thể mở trang web: ${e.message}", "Lỗi", JOptionPane.ERROR_MESSAGE)
     }
